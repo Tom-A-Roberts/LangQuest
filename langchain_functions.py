@@ -93,6 +93,7 @@ The move MUST be a single small action that doesn't progress the story much - do
 But make their plan work somewhat, to let them make some progress in order to keep the game fun.
 Think about whether it the move is possible currently in the story, how likely the move is to succeed, and whether it is fair.
 Write your thoughts down in a single sentence. Make it extremely short.
+The quest campaign story is hidden from the player, do not reveal future events, or any information or secrets that have not yet been given to the player.
 """
     system_context = """# CONTEXT:
 
@@ -113,7 +114,11 @@ Write your thoughts down in a single sentence. Make it extremely short.
 {inventory}"""
     system_context_2 = """### PLAYER'S ACTION HISTORY:
 
-{action_history}"""
+{action_history}
+
+### SECRET QUEST CAMPAIGN STORY (hidden from the player):
+
+{story}"""
 
     user_template = """# PLAYER'S MOVE:
 
@@ -135,6 +140,7 @@ Write your thoughts down in a single sentence. Make it extremely short.
         inventory=convert_item_list_to_string(player.items),
         world=dungeon_master.world_description,
         action_history=convert_history_list_to_string(dungeon_master.player_summaries),
+        story=dungeon_master.quest_story
     )
     return result
 
@@ -189,6 +195,7 @@ You will be given the action of the player of the game and you will need to stat
 Generate the likely action directly from the thoughts.
 Consider whether the move is even possible currently in the story, how likely the move is to succeed, and whether it is fair.
 Make sure the outcome is written concisely, keeping it very short.
+The quest campaign story is hidden from the player, do not reveal future events, or any information or secrets that have not yet been given to the player.
 """
     system_context_1 = """# PLAYER CONTEXT:
 
@@ -210,7 +217,11 @@ Make sure the outcome is written concisely, keeping it very short.
 
     system_context_2 = """### PLAYER'S ACTION HISTORY:
 
-{main_history}"""
+{main_history}
+
+### SECRET QUEST CAMPAIGN STORY (hidden from the player):
+
+{story}"""
 
     user_template = """# PLAYER'S ACTION:
 
@@ -239,6 +250,7 @@ Make sure the outcome is written concisely, keeping it very short.
         player_location=player.location,
         world=dungeon_master.world_description,
         main_history=convert_history_list_to_string(dungeon_master.player_summaries),
+        story=dungeon_master.quest_story
     )
     return result
 
@@ -262,7 +274,8 @@ You are the dungeon master of a Dungeons and Dragons game.
 The player has just taken their action, and the outcome is given to you. However, the language used isn't correct.
 You are to correct the language without changing the meaning of the outcome.
 You are to direct the outcome at the player, using language like "you" and "your". Use imaginative and creative language with lots of enthusiasm.
-Write it like you are telling the player what happened to them."""
+Write it like you are telling the player what happened to them.
+The quest campaign story is hidden from the player, do not reveal future events, or any information or secrets that have not yet been given to the player."""
 
     context_template_player = """# PLAYER's CONTEXT:
 
@@ -284,7 +297,11 @@ Write it like you are telling the player what happened to them."""
 
     system_context_2 = """### PLAYER'S ACTION HISTORY:
 
-{player_action_history}"""
+{player_action_history}
+
+### SECRET QUEST CAMPAIGN STORY (hidden from the player):
+
+{story}"""
 
     user_combined_template = """
 # PLAYER'S ACTION:
@@ -320,67 +337,10 @@ Write it like you are telling the player what happened to them."""
         player_thoughts=player_thoughts,
         player_likely_outcome=player_likely_outcome,
         player_action_history=convert_history_list_to_string(dungeon_master.player_summaries),
+        story=dungeon_master.quest_story
     )
     return result
 
-
-def convert_outcome_to_one_sided_description(
-        player: entities.Player,
-        player_action: str,
-        outcome: str,
-        dungeon_master: entities.DungeonMaster,
-):
-    chat_bot = ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo")
-    system_template = """
-You are the dungeon master of a Dungeons and Dragons game.
-The player has just taken their action, and the outcome is given to you. However, the language used isn't correct.
-You are to correct the language without changing the meaning of the outcome.
-You are to direct the outcome at the player, using language like "you" and "your". Use imaginative and creative language with lots of enthusiasm."""
-
-    context_template = """# PLAYER'S CONTEXT:
-
-### PLAYER's CHARACTER DESCRIPTION:
-
-{player_character}
-
-# WORLD DESCRIPTION:
-
-{world}
-
-### PLAYER'S LOCATION:
-
-{player_location}
-
-### PLAYER'S INVENTORY:
-
-{player_inventory}"""
-
-    user_template = """# PLAYER'S ACTION:
-
-{player_action}
-
-# OUTCOME OF PLAYER'S ACTION:
-
-{outcome}
-
-# IMPROVED LANGUAGE OUTCOME:"""
-    system_message_prompt = SystemMessagePromptTemplate.from_template(system_template)
-    system_message_prompt_2 = SystemMessagePromptTemplate.from_template(context_template)
-    user_message_prompt = HumanMessagePromptTemplate.from_template(user_template)
-    chat_prompt = ChatPromptTemplate.from_messages([system_message_prompt,
-                                                    system_message_prompt_2,
-                                                    user_message_prompt])
-
-    chain = LLMChain(llm=chat_bot, prompt=chat_prompt)
-    result = chain.run(
-        world=dungeon_master.world_description,
-        player_inventory=convert_item_list_to_string(player.items),
-        player_character=player.description,
-        player_location=player.location,
-        player_action=player_action,
-        outcome=outcome,
-    )
-    return result
 
 def summarise_event(
         action: str,

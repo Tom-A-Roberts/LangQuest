@@ -125,14 +125,21 @@ if st.session_state.game_state == GameState.WAITING_TO_START.value:
                 """ They also face constant attacks from goblins, orcs, and other foes who crave their resources and loot. Currently, the village is peaceful.""",
                 height=200,
             )
+            quest_story = st.text_area(
+                "Starting Quest Story (this may change over time...)",
+                """1. A series of mysterious murder have occurred in the past few weeks. The victims are all prominent figures in the village, such as merchants, craftsmen, and guards.
+2. The player must follow the clues and discover that the murders are the work of an expert assassin goblin who has been sneaking into the village at night on a raft. The first clue is that a suspicious looking raft keeps going to the market district. The goblin is a member of a notorious band of raiders who have been terrorising the nearby settlements and plundering their resources.
+3. The player must track down the goblin’s raft and find out that he is planning to assassinate the village elder during the upcoming festival. The goblin has rigged his raft with explosives and intends to blow up the elder’s house along with himself and anyone nearby.
+4. The player must stop the goblin before he reaches his target and save the village from destruction. The player can either confront him on his raft, ambush him on land, or try to defuse his bombs. The player will have to deal with his traps, his stealth, and his deadly skills.
+5. If the player succeeds, he or she will be hailed as a hero by the villagers and rewarded by the elder.""",
+                height=200)
         with player_tab:
             player_description = st.text_area(
                 "Player 1's Character Description",
                 """You are a hunter and a craftsman in Laketown."""
                 """ You have learned how to track, trap, and kill various animals that live around the lake."""
                 """ You also know how to use their skins, bones, and meat to make useful items such as clothing, weapons, and food."""
-                """ You are brave, resourceful, and loyal to your fellow villagers."""
-                """ You have a personal vendetta against goblins, who killed your family when you were young.""",
+                """ You are brave, resourceful, and loyal to your fellow villagers.""",
                 height=200,
             )
             player_items = st.text_area(
@@ -147,11 +154,11 @@ if st.session_state.game_state == GameState.WAITING_TO_START.value:
             )
             player_objective = st.text_area(
                 "Player 1's Objective",
-                "Find and defeat the Goblin before he can sabotage Laketown or flee with valuable loot.",
+                "A series of mysterious murder have occurred in the past few weeks. You are to follow the clues and stop the perpetrator before they do anything worse.",
                 height=50,
             )
             player_starting_location = st.text_input(
-                "Player 1's Starting Location", "You are standing on the wooden dock attatched to Laketown"
+                "Player 1's Starting Location", "You are standing on the wooden dock attached to Laketown"
             )
             player_starting_text = st.text_area(
                 "Player 1's Starting Text",
@@ -187,7 +194,7 @@ if st.session_state.game_state == GameState.WAITING_TO_START.value:
             "Player 1", player_description, player_items, player_objective, player_starting_location
         )
         st.session_state.dungeon_master = entities.DungeonMaster(
-            player_starting_text, world_desc, st.session_state.player
+            player_starting_text, world_desc, st.session_state.player, quest_story
         )
 
         st.session_state.game_state = GameState.WAITING_FOR_PLAYER.value

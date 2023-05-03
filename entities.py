@@ -46,15 +46,17 @@ class DungeonMasterTurn:
         self.action: str = action
 
 class DungeonMaster:
-    def __init__(self, player_first_text: str, world_description: str, player1: Player):
+    def __init__(self, player_first_text: str, world_description: str, player: Player, quest_story: str):
         self.history: list[str] = []
         self.player_history: list[DungeonMasterTurn] = []
 
         self.player_history.append(DungeonMasterTurn(player_first_text))
 
-        self.player_summaries: list[str] = [f"Starts in location '{player1.location}'"]
+        self.player_summaries: list[str] = [f"Starts in location '{player.location}'"]
 
         self.world_description: str = world_description
+
+        self.quest_story: str = quest_story
 
     def player_result(self, action: str):
         self.player_history.append(DungeonMasterTurn(action))
