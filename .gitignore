@@ -1,3 +1,8 @@
+api.txt
+old_functions.py
+test.html
+*.pickle
+apps/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
