@@ -16,6 +16,7 @@ st.set_page_config(
 
 skip_intro = False
 
+
 with open(pathlib.Path("content/style.css")) as css:
     st.markdown(f"<style>{css.read()}</style>", unsafe_allow_html=True)
 
@@ -64,6 +65,19 @@ if "debug_history" not in st.session_state:
 if "compute_progress" not in st.session_state:
     st.session_state.compute_progress = 0
 
+if "has_password" not in st.session_state:
+    if st.secrets._secrets is None or "use_password" not in st.secrets:
+        st.session_state.has_password = True
+    else:
+        if st.secrets["use_password"].strip().lower() == "false":
+            st.session_state.has_password = True
+            lang.api_key.set_key(st.secrets["api_key"])
+        else:
+            st.session_state.has_password = False
+
+if "entered_pass_this_session" not in st.session_state:
+    st.session_state.entered_pass_this_session = False
+
 # Set up sidebar
 if "dungeon_master" in st.session_state:
     with st.sidebar:
@@ -86,6 +100,18 @@ if st.session_state.game_state == GameState.WAITING_TO_START.value:
         "<p style = 'text-align: center; color: grey;' > " + utils.img_to_html(main_title_image, 550) + "</p> ",
         unsafe_allow_html=True,
     )
+
+
+    if not st.session_state.has_password:
+        pass_input = st.text_input("Enter the password in order to access the API Key", key="player_password")
+        if pass_input == st.secrets["app_password"]:
+            st.session_state.has_password = True
+            st.session_state.entered_pass_this_session = True
+            lang.api_key.set_key(st.secrets["api_key"])
+            st._rerun()
+    if st.session_state.entered_pass_this_session:
+        st.info("Password accepted")
+
 
     with st.expander("Game Settings", expanded=False):
         st.write("This will change what setup is given to the AI Dungeon Master.")
@@ -150,7 +176,11 @@ if st.session_state.game_state == GameState.WAITING_TO_START.value:
     if skip_intro:
         start_button = True
     else:
-        start_button = st.button("🏔️ Begin LangQuest!", help="Click to start the game with the current settings.")
+        if st.session_state.has_password:
+            start_button = st.button("🏔️ Begin LangQuest!", help="Click to start the game with the current settings.")
+        else:
+            start_button = st.button("🏔️ Begin LangQuest!", help="Click to start the game with the current settings.", disabled=True)
+            st.warning("You must enter the password in order to start the game. See the top of the page.")
     if start_button:
         st.session_state.world_state = entities.World(world_desc)
         st.session_state.player = entities.Player(
@@ -165,10 +195,11 @@ if st.session_state.game_state == GameState.WAITING_TO_START.value:
 
 
 # Main game loop
-if st.session_state.game_state != GameState.WAITING_TO_START.value:
+if st.session_state.game_state != GameState.WAITING_TO_START.value and st.session_state.has_password:
     assert "player" in st.session_state, "Player is None"
     assert "world_state" in st.session_state, "World State is None"
     assert "dungeon_master" in st.session_state, "Dungeon Master is None"
+    assert lang.api_key.key != "", "API Key is empty"
 
     full_col1, full_col2 = st.columns(2)
     with full_col1:

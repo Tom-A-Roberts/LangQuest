@@ -13,10 +13,23 @@ from langchain.prompts.chat import (
     HumanMessagePromptTemplate,
 )
 
-api_key = pathlib.Path("api.txt").read_text().strip("")
-openai.api_key = api_key
-os.environ['OPENAI_API_KEY'] = api_key
 
+class api_keyholder:
+    def __init__(self):
+        self.key = ""
+
+    def __call__(self):
+        return self.key
+
+    # set the key
+    def set_key(self, key):
+        openai.api_key = key
+        os.environ['OPENAI_API_KEY'] = key
+        self.key = key
+
+api_key = api_keyholder()
+if pathlib.Path("api.txt").exists():
+    api_key.set_key(pathlib.Path("api.txt").read_text().strip(""))
 
 def convert_history_list_to_string(item_list: list[str]):
     _result = ""

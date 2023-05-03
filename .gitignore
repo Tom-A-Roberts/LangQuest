@@ -3,6 +3,7 @@ old_functions.py
 test.html
 *.pickle
 apps/
+.streamlit/secrets.toml
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
