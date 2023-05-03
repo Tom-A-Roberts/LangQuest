@@ -4,9 +4,6 @@ import utils_and_widgets as utils
 st.markdown("# 🔧 Game State")
 st.caption("Developer page, for peering behind the scenes")
 
-if "compute_state" in st.session_state:
-    st.markdown(f"Current game state: `{st.session_state.game_state.name}`")
-
 if "debug_history" in st.session_state:
     history = ""
     for event in st.session_state.debug_history:

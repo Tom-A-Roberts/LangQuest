@@ -193,19 +193,23 @@ if st.session_state.game_state != GameState.WAITING_TO_START.value:
     with full_col2:
         tab1, tab2, tab3 = st.tabs(["💡 Status", "🧳 Inventory", "📖 Character Description"])
         with tab1:
-            st.markdown(f"#### ❤️ Health")
-            my_bar = st.progress(
+ 
+            stats_col1, stats_col2 = st.columns(2)
+
+            stats_col1.image(st.session_state.latest_image, width=345)
+            if "image_prompt" in st.session_state:
+                with stats_col1.expander("🎨 Event Image Prompt"):
+                    st.write(st.session_state.image_prompt)
+
+            stats_col2.markdown(f"#### ❤️ Health")
+            my_bar = stats_col2.progress(
                 st.session_state.player.health,
                 text=f":red[{st.session_state.player.health}/{st.session_state.player.max_health}]",
             )
-            sub_col1, sub_col2 = st.columns(2)
-
-            sub_col2.image(st.session_state.latest_image, width=250)
-
-            sub_col1.markdown(f"#### 🌏 Location:")
-            sub_col1.markdown(f" {st.session_state.player.location}")
-            sub_col1.markdown(f"#### 🧭 Objective:")
-            sub_col1.markdown(f" {st.session_state.player.objective}")
+            stats_col2.markdown(f"#### 🌏 Location:")
+            stats_col2.markdown(f" {st.session_state.player.location}")
+            stats_col2.markdown(f"#### 🧭 Objective:")
+            stats_col2.markdown(f" {st.session_state.player.objective}")
         with tab2:
             cl1expander = st.expander("🧳 Inventory", expanded=False)
             inventory_output_string = ""
@@ -245,13 +249,6 @@ if st.session_state.game_state != GameState.WAITING_TO_START.value:
         if st.session_state.compute_progress >= 100:
             st.session_state.compute_progress = 100
         st.progress(st.session_state.compute_progress)
-
-    if st.session_state.game_state == GameState.WAITING_FOR_PLAYER.value:
-        actions_container = st.container()
-        col1, col2, col3 = actions_container.columns(3)
-        col1.button("Action 1", use_container_width=True, disabled=input_is_disabled)
-        col2.button("Action 2", use_container_width=True, disabled=input_is_disabled)
-        col3.button("Action 3", use_container_width=True, disabled=input_is_disabled)
 
     if st.session_state.user_input != "" and st.session_state.game_state == GameState.WAITING_FOR_PLAYER.value:
         st.session_state.player.play_action(st.session_state.user_input)

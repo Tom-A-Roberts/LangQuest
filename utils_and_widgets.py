@@ -17,6 +17,8 @@ def img_to_bytes(image: PIL.Image):
     # encoded = base64.b64encode(img_bytes).decode()
     # return encoded
 
+
+
 def img_to_html(image: PIL.Image, size: int):
     img_html = "<img style='width:{}px' src='data:image/png;base64,{}' class='img-fluid'>".format(
         size,

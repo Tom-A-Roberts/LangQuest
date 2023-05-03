@@ -455,22 +455,22 @@ def write_scenario_prompt(
 ):
     chat_bot = ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo")
     system_template = """
-You are a machine that generates a visual prompt that will be turned into an image, based upon a given scenario.
+You are a machine that generates a visual prompt that will be turned into a painting, based upon a given scenario.
 Include ONLY the most crucial details that make up what the particular event looks like to an observer. Follow a similar style to the examples given.
 Make sure it is a very short single sentence.
 Good prompt examples are as follows:
 
-An image of a warrior with a shield on his back and a sword in his hand, standing in front of a cave entrance. Mountains in the background. Fantasy. Highly detailed, Artstation, award winning.
+A painting of a warrior with a shield on his back and a sword in his hand, standing in front of a cave entrance. Mountains in the background. Fantasy. Highly detailed, Artstation, award winning.
 
-Siege of a medieval castle in winter while two great armies face each other fighting below and catapults throwing stones at the castle destroying its stone walls. fantasy, atmospheric, detailed.
+A zoomed out painting of a siege of a medieval castle in winter while two great armies face each other fighting below and catapults throwing stones at the castle destroying its stone walls. fantasy, atmospheric, detailed.
 
-A young man standing inside of a shop, browsing its wares. The shop is filled with various items, including weapons, armor, and potions. The shopkeeper is standing behind the counter, watching the young man. fantasy, sharp high quality, cinematic.
+A painting of a young man standing inside of a shop, browsing its wares. The shop is filled with various items, including weapons, armor, and potions. The shopkeeper is standing behind the counter, watching the young man. fantasy, sharp high quality, cinematic.
 
-a beautiful matte painting of glass forest, a single figure walking through the middle of it with a battle axe on his back, cinematic, dynamic lighting, concept art, realistic, realism, colorful.
+A painting of a beautiful matte painting of glass forest, a single figure walking through the middle of it with a battle axe on his back, cinematic, dynamic lighting, concept art, realistic, realism, colorful.
 
-A closeup photograph of an old wise villager, highly detailed face, depth of field, moody light, golden hour, fantasy, centered, extremely detailed, award winning photography.
+A closeup painting of an old wise villager, highly detailed face, depth of field, moody light, golden hour, fantasy, centered, extremely detailed, award winning painting.
 
-A portrait photo of a butcher in a medieval village, holding a knife in his hand, with a dead pig hanging from a hook behind him. fantasy, sharp, high quality, extremely detailed, award winning photography.
+A portrait painting of a butcher in a medieval village, holding a knife in his hand, with a dead pig hanging from a hook behind him. fantasy, sharp, high quality, extremely detailed, award winning painting.
 """
 
     user_template = """
@@ -493,6 +493,13 @@ A portrait photo of a butcher in a medieval village, holding a knife in his hand
 
 
 def generate_image(prompt: str):
+    forced_additional_prompt = "fantasy, desaturated"
+    prompt = prompt.strip()
+    if prompt[-1] == ".":
+        prompt = prompt[:-1]
+    if prompt[-1] == ",":
+        prompt = prompt[:-1]
+    prompt = prompt + ". " + forced_additional_prompt
     response = openai.Image.create(
         prompt=prompt,
         n=1,
