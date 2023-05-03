@@ -85,7 +85,7 @@ if "dungeon_master" in st.session_state:
         scrollbar_text = ""
         for i in range(len(st.session_state.dungeon_master.player_summaries)):
             scrollbar_text += (
-                f"><span class='player-1'>Player 1:</span> {st.session_state.dungeon_master.player_summaries[i]}\n"
+                f"><span class='player-1'>Player:</span> {st.session_state.dungeon_master.player_summaries[i]}\n"
             )
         scrollbar_text = scrollbar_text[:-1]
         utils.custom_scroller(scrollbar_text, height=500)
@@ -115,7 +115,7 @@ if st.session_state.game_state == GameState.WAITING_TO_START.value:
 
     with st.expander("Game Settings", expanded=False):
         st.write("This will change what setup is given to the AI Dungeon Master.")
-        scene_tab, player_tab = st.tabs(["Scene", "Player 1"])
+        scene_tab, player_tab = st.tabs(["Scene", "Player"])
         with scene_tab:
             world_desc = st.text_area(
                 "Description of World",
@@ -135,7 +135,7 @@ if st.session_state.game_state == GameState.WAITING_TO_START.value:
                 height=200)
         with player_tab:
             player_description = st.text_area(
-                "Player 1's Character Description",
+                "Player's Character Description",
                 """You are a hunter and a craftsman in Laketown."""
                 """ You have learned how to track, trap, and kill various animals that live around the lake."""
                 """ You also know how to use their skins, bones, and meat to make useful items such as clothing, weapons, and food."""
@@ -143,7 +143,7 @@ if st.session_state.game_state == GameState.WAITING_TO_START.value:
                 height=200,
             )
             player_items = st.text_area(
-                "Player 1's Starting Items",
+                "Player's Starting Items",
                 """A rickety hatchet made from a broken axe and a stick\n"""
                 """A hunting knife made from deer antlers and iron\n"""
                 """A fishing rod and a net made from reeds and rope\n"""
@@ -153,15 +153,15 @@ if st.session_state.game_state == GameState.WAITING_TO_START.value:
                 height=200,
             )
             player_objective = st.text_area(
-                "Player 1's Objective",
+                "Player's Objective",
                 "A series of mysterious murder have occurred in the past few weeks. You are to follow the clues and stop the perpetrator before they do anything worse.",
                 height=50,
             )
             player_starting_location = st.text_input(
-                "Player 1's Starting Location", "You are standing on the wooden dock attached to Laketown"
+                "Player's Starting Location", "You are standing on the wooden dock attached to Laketown"
             )
             player_starting_text = st.text_area(
-                "Player 1's Starting Text",
+                "Player's Starting Text",
                 """You are on the docks of Laketown, You hear the sound of waves crashing against the wooden stilts that support the village."""
                 """ You smell fish and smoke in the air. You see several boats, huts, and villagers around you."""
                 """ You swear you saw a suspicious looking raft going towards the market district earlier.""",
@@ -175,7 +175,7 @@ if st.session_state.game_state == GameState.WAITING_TO_START.value:
         + " </p> ",
         unsafe_allow_html=True,
     )
-    st.subheader("Player 1 (You)")
+    st.subheader("Player")
     st.write(player_description)
     st.write(f"Objective: {player_objective}")
     st.divider()
@@ -191,7 +191,7 @@ if st.session_state.game_state == GameState.WAITING_TO_START.value:
     if start_button:
         st.session_state.world_state = entities.World(world_desc)
         st.session_state.player = entities.Player(
-            "Player 1", player_description, player_items, player_objective, player_starting_location
+            "Player", player_description, player_items, player_objective, player_starting_location
         )
         st.session_state.dungeon_master = entities.DungeonMaster(
             player_starting_text, world_desc, st.session_state.player, quest_story
@@ -218,9 +218,9 @@ if st.session_state.game_state != GameState.WAITING_TO_START.value and st.sessio
             event_text = st.session_state.dungeon_master.player_history[i].action
             history += f"> {role_text} {event_text}\n\n"
             if i < len(st.session_state.player.turn_history):
-                role_text = f"<span class='player-1'>Player 1:</span>"
+                role_text = f"<span class='player-1'>Player:</span>"
                 event_text = st.session_state.player.turn_history[i].action
-                history += f"> {role_text} {event_text}\n\n"
+                history += f"> {role_text} {event_text}\n"
         if st.session_state.dungeon_master_thoughts != "":
             history += f"\n<span class='thought'>‍💭 Dungeon Master Thoughts: {st.session_state.dungeon_master_thoughts}</span>"
         if len(history) > 0:
@@ -348,6 +348,18 @@ if st.session_state.game_state != GameState.WAITING_TO_START.value and st.sessio
             st.session_state.compute_progress += 23
             st._rerun()
         if st.session_state.compute_state == "Finished Computing Outcome":
+            with st.spinner("Determining new location..."):
+                st.session_state.player.location = lang.determine_new_location(
+                    st.session_state.player, st.session_state.player_action, st.session_state.player_result,
+                    st.session_state.dungeon_master
+                )
+            st.session_state.debug_history.append(
+                f"New location for player: {st.session_state.player.location}"
+            )
+            st.session_state.compute_state = "Finished New Location"
+            st.session_state.compute_progress += 0
+            st._rerun()
+        if st.session_state.compute_state == "Finished New Location":
             with st.spinner("Summarising Event..."):
                 st.session_state.player_action_summary = lang.summarise_event(
                     st.session_state.player_action, st.session_state.player_result

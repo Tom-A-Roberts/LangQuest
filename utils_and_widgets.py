@@ -40,18 +40,18 @@ def custom_scroller(html_content: str, height: int):
     }
     .player-1 {
     color: #8888ff;
-    text-shadow: 0 0 3px #333399;
+    text-shadow: 0 0 0px #333399;
     }
     .player-2 {
     color: #ff8888;
-    text-shadow: 0 0 3px #993333;
+    text-shadow: 0 0 0px #993333;
     }
     .dungeon-master {
-    color: #ffff55;
-    text-shadow: 0 0 3px #999933;
+    color: #55ff55;
+    text-shadow: 0 0 0px #999933;
     }
     .glow {
-    text-shadow: 0 0 3px #555555;
+    text-shadow: 0 0 0px #555555;
     }
     .thought{
     color: #666666;

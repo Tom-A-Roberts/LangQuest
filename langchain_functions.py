@@ -90,7 +90,7 @@ You are a mediator in a dungeons and dragons game.
 You will be given a player's move (and context), and you are to use the context
 to come up with the dungeon master's thoughts about the player's move.
 The move MUST be a single small action that doesn't progress the story much - don't let the player cheat.
-But make their plan work somewhat, to let them make some progress in order to keep the game fun.
+Consider whether you will allow them to progress through the story with this move. Letting the player progress sometimes makes the game fun.
 Think about whether it the move is possible currently in the story, how likely the move is to succeed, and whether it is fair.
 Write your thoughts down in a single sentence. Make it extremely short.
 The quest campaign story is hidden from the player, do not reveal future events, or any information or secrets that have not yet been given to the player.
@@ -194,6 +194,7 @@ You are the dungeon master in a dungeons and dragons game.
 You will be given the action of the player of the game and you will need to state the likely outcome of the action, given the thoughts and the context.
 Generate the likely action directly from the thoughts.
 Consider whether the move is even possible currently in the story, how likely the move is to succeed, and whether it is fair.
+Consider whether you will allow them to progress through the story with this move. Letting the player progress sometimes makes the game fun.
 Make sure the outcome is written concisely, keeping it very short.
 The quest campaign story is hidden from the player, do not reveal future events, or any information or secrets that have not yet been given to the player.
 """
@@ -342,6 +343,68 @@ The quest campaign story is hidden from the player, do not reveal future events,
     return result
 
 
+def determine_new_location(
+        player: entities.Player,
+        player_sanitized_action: str,
+        outcome: str,
+        dungeon_master: entities.DungeonMaster,
+) -> str:
+    chat_bot = ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo")
+    #     system_template = """
+    # You will be given the action of a player in a Dungeons and Dragons game.
+    # You are to write a short description of the immediate outcome of their action.
+    # Do not progress any further than the likely outcome. Do not add anything to the likely outcome.
+    # Use the likely outcome exactly as they are given."""
+
+    system_template = """You are a location determining machine. Given an old location, world context, and player action, you are to determine the location of the player during/at the end of their action.
+The location may be the same as before. Use the context to help you determine the location. The location should be stated in a single concise sentence. Write the location in quotes. Don't say "You are still" or "You are now". Say: "You are"
+This is so that the full location can be displayed to the player. It is important that the player knows where they are, even if they leave the game for a while and come back later, there should be enough information for them to know where they are."""
+
+    context_template_player = """# WORLD CONTEXT:
+
+### WORLD DESCRIPTION:
+
+{world}"""
+
+    system_context_2 = """"""
+
+    user_combined_template = """### STORY HISTORY:
+
+"{player_action_history}"
+
+# PLAYER'S PREVIOUS LOCATION:
+
+"{player_location}"
+    
+# PLAYER'S LATEST ACTION:
+
+"{player_action}"
+
+# THE OUTCOME GIVEN TO THE PLAYER:
+
+"{outcome}"
+
+# THE PLAYER'S NEW LOCATION:"""
+
+    system_message_prompt = SystemMessagePromptTemplate.from_template(system_template)
+    system_message_prompt_2 = SystemMessagePromptTemplate.from_template(context_template_player)
+    system_message_prompt_3 = SystemMessagePromptTemplate.from_template(system_context_2)
+    user_message_prompt = HumanMessagePromptTemplate.from_template(user_combined_template)
+    chat_prompt = ChatPromptTemplate.from_messages([system_message_prompt,
+                                                    system_message_prompt_2,
+                                                    system_message_prompt_3,
+                                                    user_message_prompt])
+
+    chain = LLMChain(llm=chat_bot, prompt=chat_prompt)
+    result = chain.run(
+        world=dungeon_master.world_description,
+        player_action_history=convert_history_list_to_string(dungeon_master.player_summaries),
+        player_location=player.location,
+        player_action=player_sanitized_action,
+        outcome=outcome,
+    )
+    return extract_result_from_quotes(result)
+
 def summarise_event(
         action: str,
         outcome: str,
@@ -349,8 +412,8 @@ def summarise_event(
     chat_bot = ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo")
     system_template = """
         """
-    user_template = """Given the input action and input action outcome, you are to rewrite the whole event in a single concise sentence.
-Remove all unnecessary words. Make sure that the sentence is directed towards the player, using words like "you" and "your".
+    user_template = """Given the input action and input action outcome, you are to summarise the event to a single sentence.
+Also, make sure that it is directed towards the player, using words like "you" and "your".
 Write the output text in quotes.
 # INPUT ACTION:
 
@@ -421,6 +484,7 @@ Include ONLY the most crucial details that make up what the particular event loo
         event_summary=event_summary,
     )
     return result
+
 
 
 def write_scenario_prompt(
