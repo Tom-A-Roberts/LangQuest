@@ -103,7 +103,7 @@ if st.session_state.game_state == GameState.WAITING_TO_START.value:
 
 
     if not st.session_state.has_password:
-        pass_input = st.text_input("Enter the password in order to access the API Key", key="player_password")
+        pass_input = st.text_input("Enter the password in order to access the API Key", key="player_password", type="password")
         if pass_input == st.secrets["app_password"]:
             st.session_state.has_password = True
             st.session_state.entered_pass_this_session = True

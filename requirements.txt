@@ -1,3 +1,4 @@
 streamlit~=1.22.0
 Pillow~=9.5.0
 langchain
+openai
