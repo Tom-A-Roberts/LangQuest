@@ -311,12 +311,12 @@ def get_gpt_4_dungeon_master_outcome(
     # Use the likely outcome exactly as they are given."""
 
     system_template = """
-You are the dungeon master of a singleplayer text-adventure Dungeons and Dragons game. The game should be challenging yet not impossible. Stupid choices
+You are the dungeon master of a singleplayer text-adventure Dungeons and Dragons game. The game should be challenging. Stupid choices
 should be punished and should have consequences.
 The player has just taken their action, and the outcome is given to you. Write a short single paragraph of the immediate outcome of their action.
 If the player is not doing an action that is in-line with the story, they should be allowed to go ahead with their action, but the outcome you write shouldn't
 progress the story.
-The outcome should contain story hooks (embedded sub-story that is happening in the background).
+The outcome should contain MULTIPLE story hooks in the paragraph (embedded different sub-stories that are happening in the background).
 Once you have written this short single paragraph, then give a very short single sentence description of what is around the player,
 prioritising mentioning any people, buildings, or any other things of interest, this is because
 it is a text-adventure game, and the player can't see.
