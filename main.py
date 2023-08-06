@@ -1,6 +1,10 @@
 import pathlib
+from typing import Any
+
 import streamlit as st
 from PIL import Image, ImageOps
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+
 import entities
 import utils_and_widgets as utils
 from enum import Enum
@@ -15,7 +19,6 @@ st.set_page_config(
 )
 
 skip_intro = False
-
 
 with open(pathlib.Path("content/style.css")) as css:
     st.markdown(f"<style>{css.read()}</style>", unsafe_allow_html=True)
@@ -33,12 +36,14 @@ main_title_image = get_image("content/LangQuestTitle.jpeg")
 starting_image = get_image("content/Starting_Image.jpeg", grayscale=True)
 secondary_title_image = get_image("content/TitleSmaller.jpeg")
 
+
 @st.cache_resource
 class GameState(Enum):
     WAITING_TO_START = 1
     DUNGEON_MASTER_COMPUTING = 2
     WAITING_FOR_PLAYER = 3
     WAITING_FOR_AI = 4
+
 
 # Initialize session state
 if "compute_state" not in st.session_state:
@@ -64,6 +69,9 @@ if "debug_history" not in st.session_state:
 
 if "compute_progress" not in st.session_state:
     st.session_state.compute_progress = 0
+
+if "currently_streaming" not in st.session_state:
+    st.session_state.currently_streaming = False
 
 if "has_password" not in st.session_state:
     if st.secrets._secrets is None or "use_password" not in st.secrets:
@@ -101,9 +109,9 @@ if st.session_state.game_state == GameState.WAITING_TO_START.value:
         unsafe_allow_html=True,
     )
 
-
     if not st.session_state.has_password:
-        pass_input = st.text_input("Enter the password in order to access the API Key", key="player_password", type="password")
+        pass_input = st.text_input("Enter the password in order to access the API Key", key="player_password",
+                                   type="password")
         if pass_input == st.secrets["app_password"]:
             st.session_state.has_password = True
             st.session_state.entered_pass_this_session = True
@@ -111,7 +119,6 @@ if st.session_state.game_state == GameState.WAITING_TO_START.value:
             st._rerun()
     if st.session_state.entered_pass_this_session:
         st.info("Password accepted")
-
 
     with st.expander("Game Settings", expanded=False):
         st.write("This will change what setup is given to the AI Dungeon Master.")
@@ -186,7 +193,8 @@ if st.session_state.game_state == GameState.WAITING_TO_START.value:
         if st.session_state.has_password:
             start_button = st.button("🏔️ Begin LangQuest!", help="Click to start the game with the current settings.")
         else:
-            start_button = st.button("🏔️ Begin LangQuest!", help="Click to start the game with the current settings.", disabled=True)
+            start_button = st.button("🏔️ Begin LangQuest!", help="Click to start the game with the current settings.",
+                                     disabled=True)
             st.warning("You must enter the password in order to start the game. See the top of the page.")
     if start_button:
         st.session_state.world_state = entities.World(world_desc)
@@ -199,6 +207,20 @@ if st.session_state.game_state == GameState.WAITING_TO_START.value:
 
         st.session_state.game_state = GameState.WAITING_FOR_PLAYER.value
         st._rerun()
+
+
+# print("Reset")
+class DMTokenCallbackHandler(StreamingStdOutCallbackHandler):
+    def on_llm_new_token(self, token: str, **kwargs: Any) -> None:
+        """Run on new LLM token. Only available when streaming is enabled."""
+        print(token, end="")
+        # print("|", end="")
+        st.session_state.dungeon_master_thoughts += token
+        st.write(st.session_state.dungeon_master_thoughts)
+
+        #st._rerun()
+        # sys.stdout.write(token)
+        # sys.stdout.flush()
 
 
 # Main game loop
@@ -231,10 +253,10 @@ if st.session_state.game_state != GameState.WAITING_TO_START.value and st.sessio
     with full_col2:
         tab1, tab2, tab3 = st.tabs(["💡 Status", "🧳 Inventory", "📖 Character Description"])
         with tab1:
- 
+
             stats_col1, stats_col2 = st.columns(2)
 
-            stats_col1.image(st.session_state.latest_image, width=345)
+            stats_col1.image(st.session_state.latest_image, width=300)
             if "image_prompt" in st.session_state:
                 with stats_col1.expander("🎨 Event Image Prompt"):
                     st.write(st.session_state.image_prompt)
@@ -277,9 +299,9 @@ if st.session_state.game_state != GameState.WAITING_TO_START.value and st.sessio
             st.session_state.user_input = custom_action
 
     if (
-        skip_intro
-        and st.session_state.game_state == GameState.WAITING_FOR_PLAYER.value
-        and st.session_state.turn_number == 0
+            skip_intro
+            and st.session_state.game_state == GameState.WAITING_FOR_PLAYER.value
+            and st.session_state.turn_number == 0
     ):
         st.session_state.user_input = "I walk towards the market."
 
@@ -317,36 +339,48 @@ if st.session_state.game_state != GameState.WAITING_TO_START.value and st.sessio
             st.session_state.dungeon_master_thoughts = f"{st.session_state.player_thoughts}"
             st.session_state.compute_progress += 8
             st._rerun()
+        # if st.session_state.compute_state == "Finished Thoughts":
+        #     with st.spinner("Waiting for Dungeon Master to compute... (assessing likely outcomes)"):
+        #         st.session_state.player_likely_outcome = lang.get_likely_outcome(
+        #             player,
+        #             st.session_state.player_action,
+        #             st.session_state.player_thoughts,
+        #             dungeon_master,
+        #         )
+        #     st.session_state.debug_history.append(
+        #         f"DMs likely outcome for player: {st.session_state.player_likely_outcome}"
+        #     )
+        #     st.session_state.compute_state = "Finished Likely Outcomes"
+        #     st.session_state.dungeon_master_thoughts = f"{st.session_state.player_likely_outcome}"
+        #     st.session_state.compute_progress += 13
+        #     st._rerun()
         if st.session_state.compute_state == "Finished Thoughts":
-            with st.spinner("Waiting for Dungeon Master to compute... (assessing likely outcomes)"):
-                st.session_state.player_likely_outcome = lang.get_likely_outcome(
-                    player,
-                    st.session_state.player_action,
-                    st.session_state.player_thoughts,
-                    dungeon_master,
-                )
-            st.session_state.debug_history.append(
-                f"DMs likely outcome for player: {st.session_state.player_likely_outcome}"
-            )
-            st.session_state.compute_state = "Finished Likely Outcomes"
-            st.session_state.dungeon_master_thoughts = f"{st.session_state.player_likely_outcome}"
-            st.session_state.compute_progress += 13
-            st._rerun()
-        if st.session_state.compute_state == "Finished Likely Outcomes":
-            with st.spinner("Waiting for Dungeon Master to compute... (computing and writing outcome)"):
-                st.session_state.player_result = lang.get_dungeon_master_outcome(
-                    player,
-                    st.session_state.player_action,
-                    st.session_state.player_thoughts,
-                    st.session_state.player_likely_outcome,
-                    dungeon_master,
-                )
-            st.session_state.debug_history.append(f"DMs outcome for player: {st.session_state.player_result}")
-            st.session_state.dungeon_master.player_result(st.session_state.player_result)
-            st.session_state.dungeon_master_thoughts = f""
-            st.session_state.compute_state = "Finished Computing Outcome"
-            st.session_state.compute_progress += 23
-            st._rerun()
+            if not st.session_state.currently_streaming:
+                print("Here1")
+                st.session_state.dungeon_master_thoughts = ""
+                with st.spinner("Waiting for Dungeon Master to compute... (computing and writing outcome)"):
+                    # st.session_state.player_result = lang.get_dungeon_master_outcome(
+                    #     player,
+                    #     st.session_state.player_action,
+                    #     st.session_state.player_thoughts,
+                    #     st.session_state.player_likely_outcome,
+                    #     dungeon_master,
+                    # ) # get_gpt_4_dungeon_master_outcome
+                    st.session_state.player_result = lang.get_gpt_4_dungeon_master_outcome(
+                        st.secrets["gpt_4_key"],
+                        DMTokenCallbackHandler,
+                        player,
+                        st.session_state.player_action,
+                        st.session_state.player_thoughts,
+                        # st.session_state.player_likely_outcome,
+                        dungeon_master,
+                    )
+                st.session_state.debug_history.append(f"DMs outcome for player: {st.session_state.player_result}")
+                st.session_state.dungeon_master.player_result(st.session_state.player_result)
+                st.session_state.dungeon_master_thoughts = f""
+                st.session_state.compute_state = "Finished Computing Outcome"
+                st.session_state.compute_progress += 23
+                st._rerun()
         if st.session_state.compute_state == "Finished Computing Outcome":
             with st.spinner("Determining new location..."):
                 st.session_state.player.location = lang.determine_new_location(

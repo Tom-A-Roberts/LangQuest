@@ -1,6 +1,9 @@
 import pathlib
-from typing import cast
+import sys
+from typing import cast, Any
 import openai
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+
 import entities
 import pickle
 import os
@@ -12,6 +15,15 @@ from langchain.prompts.chat import (
     SystemMessagePromptTemplate,
     HumanMessagePromptTemplate,
 )
+
+
+class CustomCallbackHandler(StreamingStdOutCallbackHandler):
+    def on_llm_new_token(self, token: str, **kwargs: Any) -> None:
+        """Run on new LLM token. Only available when streaming is enabled."""
+        print(token, end="")
+        print("|", end="")
+        # sys.stdout.write(token)
+        # sys.stdout.flush()
 
 
 class api_keyholder:
@@ -27,9 +39,11 @@ class api_keyholder:
         os.environ['OPENAI_API_KEY'] = key
         self.key = key
 
+
 api_key = api_keyholder()
 if pathlib.Path("api.txt").exists():
     api_key.set_key(pathlib.Path("api.txt").read_text().strip(""))
+
 
 def convert_history_list_to_string(item_list: list[str]):
     _result = ""
@@ -81,11 +95,47 @@ def sanitize_action(player, _action: str):
     return _action.strip()
 
 
+default_player_context_template = """# PLAYER's CONTEXT:
+
+### PLAYER's CHARACTER DESCRIPTION:
+
+{player_character}
+
+### WORLD DESCRIPTION:
+
+{world}
+
+### PLAYER'S LOCATION:
+
+{player_location}
+
+### PLAYER'S INVENTORY:
+
+{player_inventory}"""
+
+gpt_4_version = True
+
+
 def get_dungeon_master_thoughts(action: str,
                                 player: entities.Player,
                                 dungeon_master: entities.DungeonMaster):
+    # chat_bot = ChatOpenAI(temperature=0, model_name="gpt-4")
     chat_bot = ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo")
-    system_template = """
+
+    if gpt_4_version:
+        system_template = """
+You are a mediator in a dungeons and dragons game.
+You will be given a player's move (and context), and you are to use the context
+to come up with the dungeon master's thoughts about the player's move.
+Think about whether it the move is possible currently in the story, how likely the move is to succeed, and whether it is fair.
+Write your thoughts down in a single sentence. Make it extremely short.
+If the move is unfair or difficult for the player, state why.
+If the move is not inline with the theme of the world, state why.
+Mention any pro or any con of the move.
+Keep your thoughts short and very concise.
+"""
+    else:
+        system_template = """
 You are a mediator in a dungeons and dragons game.
 You will be given a player's move (and context), and you are to use the context
 to come up with the dungeon master's thoughts about the player's move.
@@ -95,23 +145,8 @@ Think about whether it the move is possible currently in the story, how likely t
 Write your thoughts down in a single sentence. Make it extremely short.
 The quest campaign story is hidden from the player, do not reveal future events, or any information or secrets that have not yet been given to the player.
 """
-    system_context = """# CONTEXT:
+    system_context = default_player_context_template
 
-### PLAYER's CHARACTER DESCRIPTION:
-
-{character}
-
-### WORLD DESCRIPTION:
-
-{world}
-
-### PLAYER'S LOCATION:
-
-{location}
-
-### PLAYER'S INVENTORY:
-
-{inventory}"""
     system_context_2 = """### PLAYER'S ACTION HISTORY:
 
 {action_history}
@@ -135,9 +170,9 @@ The quest campaign story is hidden from the player, do not reveal future events,
     chain = LLMChain(llm=chat_bot, prompt=chat_prompt)
     result = chain.run(
         players_move=action,
-        character=player.description,
-        location=player.location,
-        inventory=convert_item_list_to_string(player.items),
+        player_character=player.description,
+        player_location=player.location,
+        player_inventory=convert_item_list_to_string(player.items),
         world=dungeon_master.world_description,
         action_history=convert_history_list_to_string(dungeon_master.player_summaries),
         story=dungeon_master.quest_story
@@ -189,7 +224,8 @@ def get_likely_outcome(
         dungeon_master: entities.DungeonMaster,
 ):
     chat_bot = ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo")
-    system_template = """
+    if gpt_4_version:
+        system_template = """
 You are the dungeon master in a dungeons and dragons game.
 You will be given the action of the player of the game and you will need to state the likely outcome of the action, given the thoughts and the context.
 Generate the likely action directly from the thoughts.
@@ -198,23 +234,17 @@ Consider whether you will allow them to progress through the story with this mov
 Make sure the outcome is written concisely, keeping it very short.
 The quest campaign story is hidden from the player, do not reveal future events, or any information or secrets that have not yet been given to the player.
 """
-    system_context_1 = """# PLAYER CONTEXT:
-
-### PLAYER'S CHARACTER DESCRIPTION:
-
-{player_character}
-
-### WORLD DESCRIPTION:
-
-{world}
-    
-### PLAYER'S LOCATION:
-
-{player_location}
-
-### PLAYER'S INVENTORY:
-
-{player_inventory}"""
+    else:
+        system_template = """
+You are the dungeon master in a dungeons and dragons game.
+You will be given the action of the player of the game and you will need to state the likely outcome of the action, given the thoughts and the context.
+Generate the likely action directly from the thoughts.
+Consider whether the move is even possible currently in the story, how likely the move is to succeed, and whether it is fair.
+Consider whether you will allow them to progress through the story with this move. Letting the player progress sometimes makes the game fun.
+Make sure the outcome is written concisely, keeping it very short.
+The quest campaign story is hidden from the player, do not reveal future events, or any information or secrets that have not yet been given to the player.
+"""
+    system_context_1 = default_player_context_template
 
     system_context_2 = """### PLAYER'S ACTION HISTORY:
 
@@ -256,6 +286,90 @@ The quest campaign story is hidden from the player, do not reveal future events,
     return result
 
 
+def new_token():
+    print("new token")
+
+
+def get_gpt_4_dungeon_master_outcome(
+        gpt_4_api_key: str,
+        DMTokenCallbackHandler,
+        player: entities.Player,
+        player_sanitized_action: str,
+        player_thoughts: str,
+        # player_likely_outcome: str,
+        dungeon_master: entities.DungeonMaster,
+):
+    original_key = api_key.key
+    api_key.set_key(gpt_4_api_key)
+    chat_bot = ChatOpenAI(temperature=0, model_name="gpt-4")
+    #chat_bot = ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo")
+
+    #     system_template = """
+    # You will be given the action of a player in a Dungeons and Dragons game.
+    # You are to write a short description of the immediate outcome of their action.
+    # Do not progress any further than the likely outcome. Do not add anything to the likely outcome.
+    # Use the likely outcome exactly as they are given."""
+
+    system_template = """
+You are the dungeon master of a singleplayer text-adventure Dungeons and Dragons game. The game should be challenging yet not impossible. Stupid choices
+should be punished and should have consequences.
+The player has just taken their action, and the outcome is given to you. Write a short single paragraph of the immediate outcome of their action.
+If the player is not doing an action that is in-line with the story, they should be allowed to go ahead with their action, but the outcome you write shouldn't
+progress the story.
+The outcome should contain story hooks (embedded sub-story that is happening in the background).
+Once you have written this short single paragraph, then give a very short single sentence description of what is around the player,
+prioritising mentioning any people, buildings, or any other things of interest, this is because
+it is a text-adventure game, and the player can't see.
+Write it like you are telling the player what happened to them., using language like "you" and "your".
+Use imaginative and creative language with lots of enthusiasm.
+Don't tell the player what they should do next, simply ask, "what do you do next?".
+The quest campaign story is hidden from the player, do not reveal future events, or any information or secrets that have not yet been given to the player."""
+
+    context_template_player = default_player_context_template
+
+    system_context_2 = """### HISTORY OF THE GAME SO FAR:
+
+{player_action_history}
+
+### SECRET QUEST CAMPAIGN STORY (hidden from the player):
+
+{story}"""
+
+    user_combined_template = """
+# PLAYER'S ACTION:
+
+{player_action}
+
+### YOUR THOUGHTS ABOUT THE PLAYER'S ACTION:
+
+{player_thoughts}
+
+# DUNGEON MASTER'S RESPONSE:"""
+
+    system_message_prompt = SystemMessagePromptTemplate.from_template(system_template)
+    system_message_prompt_2 = SystemMessagePromptTemplate.from_template(context_template_player)
+    system_message_prompt_3 = SystemMessagePromptTemplate.from_template(system_context_2)
+    user_message_prompt = HumanMessagePromptTemplate.from_template(user_combined_template)
+    chat_prompt = ChatPromptTemplate.from_messages([system_message_prompt,
+                                                    system_message_prompt_2,
+                                                    system_message_prompt_3,
+                                                    user_message_prompt])
+
+    chain = LLMChain(llm=chat_bot, prompt=chat_prompt)
+    result = chain.run(
+        world=dungeon_master.world_description,
+        player_inventory=convert_item_list_to_string(player.items),
+        player_character=player.description,
+        player_location=player.location,
+        player_action=player_sanitized_action,
+        player_thoughts=player_thoughts,
+        player_action_history=convert_history_list_to_string(dungeon_master.player_summaries),
+        story=dungeon_master.quest_story
+    )
+    api_key.set_key(original_key)
+    return result
+
+
 def get_dungeon_master_outcome(
         player: entities.Player,
         player_sanitized_action: str,
@@ -278,23 +392,7 @@ You are to direct the outcome at the player, using language like "you" and "your
 Write it like you are telling the player what happened to them.
 The quest campaign story is hidden from the player, do not reveal future events, or any information or secrets that have not yet been given to the player."""
 
-    context_template_player = """# PLAYER's CONTEXT:
-
-### PLAYER's CHARACTER DESCRIPTION:
-
-{player_character}
-
-### WORLD DESCRIPTION:
-
-{world}
-
-### PLAYER'S LOCATION:
-
-{player_location}
-
-### PLAYER'S INVENTORY:
-
-{player_inventory}"""
+    context_template_player = default_player_context_template
 
     system_context_2 = """### PLAYER'S ACTION HISTORY:
 
@@ -405,6 +503,7 @@ This is so that the full location can be displayed to the player. It is importan
     )
     return extract_result_from_quotes(result)
 
+
 def summarise_event(
         action: str,
         outcome: str,
@@ -412,7 +511,7 @@ def summarise_event(
     chat_bot = ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo")
     system_template = """
         """
-    user_template = """Given the input action and input action outcome, you are to summarise the event to a single sentence.
+    user_template = """Given the input action and input action outcome, you are to summarise the event, keeping ALL important information, but using very few words and concise language.
 Also, make sure that it is directed towards the player, using words like "you" and "your".
 Write the output text in quotes.
 # INPUT ACTION:
@@ -484,7 +583,6 @@ Include ONLY the most crucial details that make up what the particular event loo
         event_summary=event_summary,
     )
     return result
-
 
 
 def write_scenario_prompt(
